@@ -1,0 +1,31 @@
+
+-- task 8
+ SET STATISTICS IO, TIME ON;
+CREATE TABLE dbo.LargeSpillDemo (
+    Id INT NOT NULL,
+    CategoryCode VARCHAR(20) NOT NULL,
+    Payload NVARCHAR(200) NOT NULL
+);
+
+INSERT INTO dbo.LargeSpillDemo (Id, CategoryCode, Payload)
+SELECT TOP (300000)
+    ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS Id,
+    CONCAT('CAT-', ABS(CHECKSUM(NEWID())) % 50) AS CategoryCode,
+    REPLICATE(N'X', 150) + CAST(ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS NVARCHAR(20)) AS Payload
+FROM sys.all_objects AS a
+CROSS JOIN sys.all_objects AS b;
+
+UPDATE STATISTICS dbo.LargeSpillDemo WITH ROWCOUNT = 10, PAGECOUNT = 1;
+
+SET STATISTICS IO, TIME ON;
+
+SELECT Id, CategoryCode, Payload
+FROM dbo.LargeSpillDemo
+ORDER BY Payload DESC;
+
+UPDATE STATISTICS dbo.LargeSpillDemo WITH FULLSCAN;
+
+SELECT Id
+FROM dbo.LargeSpillDemo
+ORDER BY Id DESC
+OPTION (RECOMPILE);
